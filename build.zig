@@ -17,6 +17,11 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    // Create module
+    _ = b.addModule("libuv", .{
+        .root_source_file = .{ .cwd_relative = "src/main.zig" },
+    });
+
     const tests = b.addTest(.{
         .name = "pixman-test",
         .root_source_file = .{ .cwd_relative = "src/main.zig" },
