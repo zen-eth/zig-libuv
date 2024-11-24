@@ -41,9 +41,9 @@ pub fn alive(self: Loop) !bool {
 ///
 /// This is not reentrant. It must not be called from a callback.
 pub fn run(self: Loop, mode: RunMode) !u32 {
-    const res = c.uv_run(self.loop, @enumToInt(mode));
+    const res = c.uv_run(self.loop, @intFromEnum(mode));
     try errors.convertError(res);
-    return @intCast(u32, res);
+    return @as(u32, @intCast(res));
 }
 
 /// Stop the event loop, causing uv_run() to end as soon as possible. This
@@ -98,7 +98,7 @@ pub fn setData(self: Loop, pointer: ?*anyopaque) void {
 /// Returns loop->data.
 pub fn getData(self: Loop, comptime DT: type) ?*DT {
     return if (c.uv_loop_get_data(self.loop)) |ptr|
-        @ptrCast(?*DT, @alignCast(@alignOf(DT), ptr))
+        @as(?*DT, @ptrCast(@alignCast(ptr)))
     else
         null;
 }

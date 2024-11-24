@@ -14,7 +14,7 @@ handle: *c.uv_timer_t,
 pub usingnamespace Handle(Timer);
 
 pub fn init(alloc: Allocator, loop: Loop) !Timer {
-    var timer = try alloc.create(c.uv_timer_t);
+    const timer = try alloc.create(c.uv_timer_t);
     errdefer alloc.destroy(timer);
     try errors.convertError(c.uv_timer_init(loop.loop, timer));
     return Timer{ .handle = timer };
@@ -104,7 +104,7 @@ test "Timer: close callback" {
     timer.setData(&data);
     timer.close((struct {
         fn callback(v: *Timer) void {
-            var dataPtr = v.getData(u8).?;
+            const dataPtr = v.getData(u8).?;
             dataPtr.* = 24;
         }
     }).callback);

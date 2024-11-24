@@ -333,27 +333,27 @@ pub const u_int32_t = __uint32_t;
 pub const u_int64_t = __uint64_t;
 pub const register_t = c_long;
 pub fn __bswap_16(arg___bsx: __uint16_t) callconv(.C) __uint16_t {
-    var __bsx = arg___bsx;
-    return @bitCast(__uint16_t, @truncate(c_short, ((@bitCast(c_int, @as(c_uint, __bsx)) >> @intCast(@import("std").math.Log2Int(c_int), 8)) & @as(c_int, 255)) | ((@bitCast(c_int, @as(c_uint, __bsx)) & @as(c_int, 255)) << @intCast(@import("std").math.Log2Int(c_int), 8))));
+    const __bsx = arg___bsx;
+    return @as(__uint16_t, @bitCast(@as(c_short, @truncate(((@as(c_int, @bitCast(@as(c_uint, __bsx))) >> @as(@import("std").math.Log2Int(c_int), 8)) & @as(c_int, 255)) | ((@as(c_int, @bitCast(@as(c_uint, __bsx))) & @as(c_int, 255)) << @as(@import("std").math.Log2Int(c_int), 8))))));
 }
 pub fn __bswap_32(arg___bsx: __uint32_t) callconv(.C) __uint32_t {
-    var __bsx = arg___bsx;
-    return ((((__bsx & @as(c_uint, 4278190080)) >> @intCast(@import("std").math.Log2Int(c_uint), 24)) | ((__bsx & @as(c_uint, 16711680)) >> @intCast(@import("std").math.Log2Int(c_uint), 8))) | ((__bsx & @as(c_uint, 65280)) << @intCast(@import("std").math.Log2Int(c_uint), 8))) | ((__bsx & @as(c_uint, 255)) << @intCast(@import("std").math.Log2Int(c_uint), 24));
+    const __bsx = arg___bsx;
+    return ((((__bsx & @as(c_uint, 4278190080)) >> @as(@import("std").math.Log2Int(c_uint), @intCast(24))) | ((__bsx & @as(c_uint, 16711680)) >> @as(@import("std").math.Log2Int(c_uint), @intCast(8)))) | ((__bsx & @as(c_uint, 65280)) << @as(@import("std").math.Log2Int(c_uint), @intCast(8)))) | ((__bsx & @as(c_uint, 255)) << @as(@import("std").math.Log2Int(c_uint), @intCast(24)));
 }
 pub fn __bswap_64(arg___bsx: __uint64_t) callconv(.C) __uint64_t {
-    var __bsx = arg___bsx;
-    return @bitCast(__uint64_t, @truncate(c_ulong, ((((((((@bitCast(c_ulonglong, @as(c_ulonglong, __bsx)) & @as(c_ulonglong, 18374686479671623680)) >> @intCast(@import("std").math.Log2Int(c_ulonglong), 56)) | ((@bitCast(c_ulonglong, @as(c_ulonglong, __bsx)) & @as(c_ulonglong, 71776119061217280)) >> @intCast(@import("std").math.Log2Int(c_ulonglong), 40))) | ((@bitCast(c_ulonglong, @as(c_ulonglong, __bsx)) & @as(c_ulonglong, 280375465082880)) >> @intCast(@import("std").math.Log2Int(c_ulonglong), 24))) | ((@bitCast(c_ulonglong, @as(c_ulonglong, __bsx)) & @as(c_ulonglong, 1095216660480)) >> @intCast(@import("std").math.Log2Int(c_ulonglong), 8))) | ((@bitCast(c_ulonglong, @as(c_ulonglong, __bsx)) & @as(c_ulonglong, 4278190080)) << @intCast(@import("std").math.Log2Int(c_ulonglong), 8))) | ((@bitCast(c_ulonglong, @as(c_ulonglong, __bsx)) & @as(c_ulonglong, 16711680)) << @intCast(@import("std").math.Log2Int(c_ulonglong), 24))) | ((@bitCast(c_ulonglong, @as(c_ulonglong, __bsx)) & @as(c_ulonglong, 65280)) << @intCast(@import("std").math.Log2Int(c_ulonglong), 40))) | ((@bitCast(c_ulonglong, @as(c_ulonglong, __bsx)) & @as(c_ulonglong, 255)) << @intCast(@import("std").math.Log2Int(c_ulonglong), 56))));
+    const __bsx = arg___bsx;
+    return @as(__uint64_t, @bitCast(@as(c_ulong, @truncate(((((((((@as(c_ulonglong, @bitCast(@as(c_ulonglong, __bsx))) & @as(c_ulonglong, 18374686479671623680)) >> @as(@import("std").math.Log2Int(c_ulonglong), @intCast(56))) | ((@as(c_ulonglong, @bitCast(@as(c_ulonglong, __bsx))) & @as(c_ulonglong, 71776119061217280)) >> @as(@import("std").math.Log2Int(c_ulonglong), @intCast(40)))) | ((@as(c_ulonglong, @bitCast(@as(c_ulonglong, __bsx))) & @as(c_ulonglong, 280375465082880)) >> @as(@import("std").math.Log2Int(c_ulonglong), @intCast(24)))) | ((@as(c_ulonglong, @bitCast(@as(c_ulonglong, __bsx))) & @as(c_ulonglong, 1095216660480)) >> @as(@import("std").math.Log2Int(c_ulonglong), @intCast(8)))) | ((@as(c_ulonglong, @bitCast(@as(c_ulonglong, __bsx))) & @as(c_ulonglong, 4278190080)) << @as(@import("std").math.Log2Int(c_ulonglong), @intCast(8)))) | ((@as(c_ulonglong, @bitCast(@as(c_ulonglong, __bsx))) & @as(c_ulonglong, 16711680)) << @as(@import("std").math.Log2Int(c_ulonglong), @intCast(24)))) | ((@as(c_ulonglong, @bitCast(@as(c_ulonglong, __bsx))) & @as(c_ulonglong, 65280)) << @as(@import("std").math.Log2Int(c_ulonglong), @intCast(40)))) | ((@as(c_ulonglong, @bitCast(@as(c_ulonglong, __bsx))) & @as(c_ulonglong, 255)) << @as(@import("std").math.Log2Int(c_ulonglong), @intCast(56)))))));
 }
 pub fn __uint16_identity(arg___x: __uint16_t) callconv(.C) __uint16_t {
-    var __x = arg___x;
+    const __x = arg___x;
     return __x;
 }
 pub fn __uint32_identity(arg___x: __uint32_t) callconv(.C) __uint32_t {
-    var __x = arg___x;
+    const __x = arg___x;
     return __x;
 }
 pub fn __uint64_identity(arg___x: __uint64_t) callconv(.C) __uint64_t {
-    var __x = arg___x;
+    const __x = arg___x;
     return __x;
 }
 pub const __sigset_t = extern struct {
@@ -628,7 +628,7 @@ pub const struct_cmsghdr = extern struct {
     pub fn __cmsg_data(self: anytype) @import("std").zig.c_translation.FlexibleArrayType(@TypeOf(self), u8) {
         const Intermediate = @import("std").zig.c_translation.FlexibleArrayType(@TypeOf(self), u8);
         const ReturnType = @import("std").zig.c_translation.FlexibleArrayType(@TypeOf(self), u8);
-        return @ptrCast(ReturnType, @alignCast(@alignOf(u8), @ptrCast(Intermediate, self) + 16));
+        return @as(ReturnType, @ptrCast(@alignCast(@as(Intermediate, @ptrCast(self)) + 16)));
     }
 };
 pub extern fn __cmsg_nxthdr(__mhdr: [*c]struct_msghdr, __cmsg: [*c]struct_cmsghdr) [*c]struct_cmsghdr;
@@ -4228,8 +4228,8 @@ pub inline fn le64toh(x: anytype) @TypeOf(__uint64_identity(x)) {
     return __uint64_identity(x);
 }
 pub const _SYS_SELECT_H = @as(c_int, 1);
-pub inline fn __FD_ISSET(d: anytype, s: anytype) @TypeOf((__FDS_BITS(s)[@intCast(usize, __FD_ELT(d))] & __FD_MASK(d)) != @as(c_int, 0)) {
-    return (__FDS_BITS(s)[@intCast(usize, __FD_ELT(d))] & __FD_MASK(d)) != @as(c_int, 0);
+pub inline fn __FD_ISSET(d: anytype, s: anytype) @TypeOf((__FDS_BITS(s)[@as(usize, @intCast(__FD_ELT(d)))] & __FD_MASK(d)) != @as(c_int, 0)) {
+    return (__FDS_BITS(s)[@as(usize, @intCast(__FD_ELT(d)))] & __FD_MASK(d)) != @as(c_int, 0);
 }
 pub const __sigset_t_defined = @as(c_int, 1);
 pub const ____sigset_t_defined = "";
@@ -4489,8 +4489,8 @@ pub const _DIRENT_HAVE_D_RECLEN = "";
 pub const _DIRENT_HAVE_D_OFF = "";
 pub const _DIRENT_HAVE_D_TYPE = "";
 pub const _DIRENT_MATCHES_DIRENT64 = @as(c_int, 1);
-pub inline fn _D_ALLOC_NAMLEN(d: anytype) @TypeOf((@import("std").zig.c_translation.cast([*c]u8, d) + d.*.d_reclen) - (&d.*.d_name[@intCast(usize, @as(c_int, 0))])) {
-    return (@import("std").zig.c_translation.cast([*c]u8, d) + d.*.d_reclen) - (&d.*.d_name[@intCast(usize, @as(c_int, 0))]);
+pub inline fn _D_ALLOC_NAMLEN(d: anytype) @TypeOf((@import("std").zig.c_translation.cast([*c]u8, d) + d.*.d_reclen) - (&d.*.d_name[@as(usize, @intCast(@as(c_int, 0)))])) {
+    return (@import("std").zig.c_translation.cast([*c]u8, d) + d.*.d_reclen) - (&d.*.d_name[@as(usize, @intCast(@as(c_int, 0)))]);
 }
 pub inline fn IFTODT(mode: anytype) @TypeOf((mode & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0o170000, .octal)) >> @as(c_int, 12)) {
     return (mode & @import("std").zig.c_translation.promoteIntLiteral(c_int, 0o170000, .octal)) >> @as(c_int, 12);
@@ -5567,11 +5567,11 @@ pub const CANBSIZ = MAX_CANON;
 pub const MAXPATHLEN = PATH_MAX;
 pub const NODEV = @import("std").zig.c_translation.cast(dev_t, -@as(c_int, 1));
 pub const DEV_BSIZE = @as(c_int, 512);
-pub inline fn isset(a: anytype, i: anytype) @TypeOf(a[@intCast(usize, i / NBBY)] & (@as(c_int, 1) << (i % NBBY))) {
-    return a[@intCast(usize, i / NBBY)] & (@as(c_int, 1) << (i % NBBY));
+pub inline fn isset(a: anytype, i: anytype) @TypeOf(a[@as(usize, @intCast(i / NBBY))] & (@as(c_int, 1) << (i % NBBY))) {
+    return a[@as(usize, @intCast(i / NBBY))] & (@as(c_int, 1) << (i % NBBY));
 }
-pub inline fn isclr(a: anytype, i: anytype) @TypeOf((a[@intCast(usize, i / NBBY)] & (@as(c_int, 1) << (i % NBBY))) == @as(c_int, 0)) {
-    return (a[@intCast(usize, i / NBBY)] & (@as(c_int, 1) << (i % NBBY))) == @as(c_int, 0);
+pub inline fn isclr(a: anytype, i: anytype) @TypeOf((a[@as(usize, @intCast(i / NBBY))] & (@as(c_int, 1) << (i % NBBY))) == @as(c_int, 0)) {
+    return (a[@as(usize, @intCast(i / NBBY))] & (@as(c_int, 1) << (i % NBBY))) == @as(c_int, 0);
 }
 pub inline fn howmany(x: anytype, y: anytype) @TypeOf((x + (y - @as(c_int, 1))) / y) {
     return (x + (y - @as(c_int, 1))) / y;

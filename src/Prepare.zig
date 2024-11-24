@@ -15,7 +15,7 @@ handle: *c.uv_prepare_t,
 pub usingnamespace Handle(Prepare);
 
 pub fn init(alloc: Allocator, loop: Loop) !Prepare {
-    var handle = try alloc.create(c.uv_prepare_t);
+    const handle = try alloc.create(c.uv_prepare_t);
     errdefer alloc.destroy(handle);
 
     try errors.convertError(c.uv_prepare_init(loop.loop, handle));

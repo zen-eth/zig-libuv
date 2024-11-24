@@ -17,7 +17,7 @@ pub usingnamespace Handle(Tty);
 pub usingnamespace Stream(Tty);
 
 pub fn init(alloc: Allocator, loop: Loop, fd: fd_t) !Tty {
-    var tty = try alloc.create(c.uv_tty_t);
+    const tty = try alloc.create(c.uv_tty_t);
     errdefer alloc.destroy(tty);
     try errors.convertError(c.uv_tty_init(loop.loop, tty, fd, 0));
     return Tty{ .handle = tty };

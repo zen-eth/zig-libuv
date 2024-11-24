@@ -92,20 +92,20 @@ pub const Errno = enum(i32) {
 pub const Error = blk: {
     // We produce these from the Errno enum so that we can easily
     // keep it synced.
-    const info = @typeInfo(Errno).Enum;
+    const info = @typeInfo(Errno).@"enum";
     var errors: [info.fields.len]std.builtin.Type.Error = undefined;
-    for (info.fields) |field, i| {
+    for (info.fields, 0..) |field, i| {
         errors[i] = .{ .name = field.name };
     }
 
-    break :blk @Type(.{ .ErrorSet = &errors });
+    break :blk @Type(.{ .error_set = &errors });
 };
 
 /// Convert the result of a libuv API call to an error (or no error).
 pub fn convertError(r: i32) !void {
     if (r >= 0) return;
 
-    return switch (@intToEnum(Errno, r)) {
+    return switch (@as(Errno, @enumFromInt(r))) {
         .E2BIG => Error.E2BIG,
         .EACCES => Error.EACCES,
         .EADDRINUSE => Error.EADDRINUSE,
@@ -188,7 +188,6 @@ pub fn convertError(r: i32) !void {
         .ESOCKTNOSUPPORT => Error.ESOCKTNOSUPPORT,
     };
 }
-
 test {
     // This is mostly just forcing our error type and function to be
     // codegenned and run once to ensure we have all the types.

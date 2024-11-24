@@ -26,7 +26,7 @@ pub const Flags = packed struct {
     _ignore_high: u1 = 0,
 
     pub inline fn toInt(self: Flags, comptime IntType: type) IntType {
-        return @intCast(IntType, @bitCast(u8, self));
+        return @as(IntType, @intCast(@as(u8, @bitCast(self))));
     }
 
     test "Flags: expected value" {
@@ -55,9 +55,9 @@ pub fn pipe(read_flags: Flags, write_flags: Flags) !Pair {
 }
 
 pub fn init(alloc: Allocator, loop: Loop, ipc: bool) !Pipe {
-    var handle = try alloc.create(c.uv_pipe_t);
+    const handle = try alloc.create(c.uv_pipe_t);
     errdefer alloc.destroy(handle);
-    try errors.convertError(c.uv_pipe_init(loop.loop, handle, @boolToInt(ipc)));
+    try errors.convertError(c.uv_pipe_init(loop.loop, handle, @intFromBool(ipc)));
     return Pipe{ .handle = handle };
 }
 
@@ -167,7 +167,7 @@ const TestData = struct {
         var data = h.getData(TestData).?;
         data.data.appendSlice(
             testing.allocator,
-            buf[0..@intCast(usize, n)],
+            buf[0..@as(usize, @intCast(n))],
         ) catch unreachable;
         testing.allocator.free(buf);
     }

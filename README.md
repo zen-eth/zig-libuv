@@ -1,9 +1,6 @@
 <hr>
 
-**⚠️ Project Archived ⚠️.** This project is archived. I used this for a few
-real projects since 2021 and it was stable, but I've since moved onto using
-[libxev](https://github.com/mitchellh/libxev) so I'm no longer maintaining
-the libuv bindings.
+Forked this repo to upgrade the zig version to master. The original repo is [here](https://github.com/mitchellh/zig-libuv).
 
 <hr>
 

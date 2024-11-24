@@ -15,7 +15,7 @@ handle: *c.uv_async_t,
 pub usingnamespace Handle(Async);
 
 pub fn init(alloc: Allocator, loop: Loop, comptime cb: fn (*Async) void) !Async {
-    var handle = try alloc.create(c.uv_async_t);
+    const handle = try alloc.create(c.uv_async_t);
     errdefer alloc.destroy(handle);
 
     const Wrapper = struct {

@@ -15,7 +15,7 @@ handle: *c.uv_idle_t,
 pub usingnamespace Handle(Idle);
 
 pub fn init(alloc: Allocator, loop: Loop) !Idle {
-    var handle = try alloc.create(c.uv_idle_t);
+    const handle = try alloc.create(c.uv_idle_t);
     errdefer alloc.destroy(handle);
 
     try errors.convertError(c.uv_idle_init(loop.loop, handle));

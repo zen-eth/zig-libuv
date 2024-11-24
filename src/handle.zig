@@ -13,7 +13,7 @@ pub fn Handle(comptime T: type) type {
 
     return struct {
         // note: this has to be here: https://github.com/ziglang/zig/issues/11367
-        const tInfo = @typeInfo(T).Struct;
+        const tInfo = @typeInfo(T).@"struct";
         const HandleType = tInfo.fields[0].type;
 
         // Request handle to be closed. close_cb will be called asynchronously
@@ -35,19 +35,19 @@ pub fn Handle(comptime T: type) type {
                         // We get the raw handle, so we need to reconstruct
                         // the T. This is mutable because a lot of the libuv APIs
                         // are non-const but modifying it makes no sense.
-                        var param: T = .{ .handle = @ptrCast(HandleType, handle) };
+                        var param: T = .{ .handle = @as(HandleType, @ptrCast(handle)) };
                         @call(.always_inline, f, .{&param});
                     }
                 }).callback
             else
                 null;
 
-            c.uv_close(@ptrCast(*c.uv_handle_t, self.handle), cbParam);
+            c.uv_close(@as(*c.uv_handle_t, @ptrCast(self.handle)), cbParam);
         }
 
         /// Loop returns the loop that this handle is a part of.
         pub fn loop(self: T) Loop {
-            const handle = @ptrCast(*c.uv_handle_t, self.handle);
+            const handle = @as(*c.uv_handle_t, @ptrCast(self.handle));
             return .{ .loop = c.uv_handle_get_loop(handle) };
         }
 
@@ -56,7 +56,7 @@ pub fn Handle(comptime T: type) type {
         /// function, then it’s active from the moment that function is called.
         /// Likewise, uv_foo_stop() deactivates the handle again.
         pub fn isActive(self: T) !bool {
-            const res = c.uv_is_active(@ptrCast(*c.uv_handle_t, self.handle));
+            const res = c.uv_is_active(@as(*c.uv_handle_t, @ptrCast(self.handle)));
             try errors.convertError(res);
             return res > 0;
         }
@@ -64,15 +64,15 @@ pub fn Handle(comptime T: type) type {
         /// Sets handle->data to data.
         pub fn setData(self: T, pointer: ?*anyopaque) void {
             c.uv_handle_set_data(
-                @ptrCast(*c.uv_handle_t, self.handle),
+                @as(*c.uv_handle_t, @ptrCast(self.handle)),
                 pointer,
             );
         }
 
         /// Returns handle->data.
         pub fn getData(self: T, comptime DT: type) ?*DT {
-            return if (c.uv_handle_get_data(@ptrCast(*c.uv_handle_t, self.handle))) |ptr|
-                @ptrCast(?*DT, @alignCast(@alignOf(DT), ptr))
+            return if (c.uv_handle_get_data(@as(*c.uv_handle_t, @ptrCast(self.handle)))) |ptr|
+                @as(?*DT, @alignCast(@ptrCast(ptr)))
             else
                 null;
         }
