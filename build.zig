@@ -18,17 +18,22 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Create module
-    _ = b.addModule("libuv", .{
-        .root_source_file = .{ .cwd_relative = "src/main.zig" },
-    });
-
-    const tests = b.addTest(.{
-        .name = "pixman-test",
-        .root_source_file = .{ .cwd_relative = "src/main.zig" },
+    const module = b.addModule("libuv", .{
+        .link_libc = true,
+        .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-    _ = try link(b, tests);
+    module.addIncludePath(.{ .cwd_relative = include_path });
+
+    const tests = b.addTest(.{
+        .name = "pixman-test",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const lib = try link(b, tests);
+    b.installArtifact(lib);
     b.installArtifact(tests);
 
     const test_step = b.step("test", "Run tests");
