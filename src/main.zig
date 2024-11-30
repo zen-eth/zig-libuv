@@ -1,5 +1,6 @@
 const std = @import("std");
 const stream = @import("stream.zig");
+const uv = @This();
 
 pub const c = @import("c.zig");
 pub const Loop = @import("Loop.zig");
@@ -13,7 +14,7 @@ pub const Cond = @import("Cond.zig");
 pub const Mutex = @import("Mutex.zig");
 pub const Sem = @import("Sem.zig");
 pub const Thread = @import("Thread.zig");
-pub const WriteReq = stream.WriteReq;
+pub const Tcp = @import("Tcp.zig");
 
 pub usingnamespace @import("error.zig");
 
@@ -32,4 +33,5 @@ test {
     _ = Mutex;
     _ = Sem;
     _ = Thread;
+    _ = Tcp;
 }
