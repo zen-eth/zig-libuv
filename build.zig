@@ -33,6 +33,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
     const lib = try link(b, tests);
+    module.linkLibrary(lib);
     b.installArtifact(lib);
     b.installArtifact(tests);
 
