@@ -15,6 +15,7 @@ pub const Mutex = @import("Mutex.zig");
 pub const Sem = @import("Sem.zig");
 pub const Thread = @import("Thread.zig");
 pub const Tcp = @import("Tcp.zig");
+pub const WriteReq = stream.WriteReq;
 
 pub usingnamespace @import("error.zig");
 
