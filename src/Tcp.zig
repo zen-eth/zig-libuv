@@ -127,69 +127,69 @@ test "tcp: echo client" {
     try testing.expectEqual(@as(i32, -89), Callbacks.connection_status); // ECONNREFUSED
 }
 
-// test "tcp: server and client connection" {
-//     const testing = std.testing;
-//     var server_loop = try Loop.init(testing.allocator);
-//     defer server_loop.deinit(testing.allocator);
-//
-//     var client_loop = try Loop.init(testing.allocator);
-//     defer client_loop.deinit(testing.allocator);
-//
-//     // Initialize server
-//     var server = try Tcp.init(&server_loop, testing.allocator);
-//     const addr = try std.net.Address.parseIp4("127.0.0.1", 7000);
-//     try server.bind(addr);
-//
-//     const Callbacks = struct {
-//         var client_connected: bool = false;
-//         var server_accepted: bool = false;
-//         var server_loop_ptr: *Loop = undefined;
-//         var alloc: std.mem.Allocator = undefined;
-//
-//         fn onServerConnection(server_handle: *Tcp, status: i32) void {
-//             if (status >= 0) {
-//                 var client = Tcp.init(server_loop_ptr, alloc) catch return;
-//                 if (server_handle.accept(&client)) |_| {
-//                     server_accepted = true;
-//                 } else |_| {
-//                     client.deinit(alloc, onClose);
-//                 }
-//             }
-//         }
-//
-//         fn onClientConnect(_: *Tcp, status: i32) void {
-//             if (status >= 0) {
-//                 client_connected = true;
-//             }
-//         }
-//
-//         fn onClose(_: *Tcp) void {}
-//     };
-//
-//     Callbacks.server_loop_ptr = &server_loop;
-//     Callbacks.alloc = testing.allocator;
-//
-//     // Start server and run one iteration to ensure it's listening
-//     try server.listen(128, Callbacks.onServerConnection);
-//     _ = try server_loop.run(.nowait);
-//
-//     // Now connect client
-//     var client = try Tcp.init(&client_loop, testing.allocator);
-//     try client.connect(addr, testing.allocator, Callbacks.onClientConnect);
-//
-//     // Run both loops until connection is established
-//     while (!Callbacks.client_connected or !Callbacks.server_accepted) {
-//         _ = try server_loop.run(.nowait);
-//         _ = try client_loop.run(.nowait);
-//     }
-//
-//     try testing.expect(Callbacks.client_connected);
-//     try testing.expect(Callbacks.server_accepted);
-//
-//     client.deinit(testing.allocator, Callbacks.onClose);
-//     server.deinit(testing.allocator, Callbacks.onClose);
-// }
-//
+test "tcp: server and client connection" {
+    const testing = std.testing;
+    var server_loop = try Loop.init(testing.allocator);
+    defer server_loop.deinit(testing.allocator);
+
+    var client_loop = try Loop.init(testing.allocator);
+    defer client_loop.deinit(testing.allocator);
+
+    // Initialize server
+    var server = try Tcp.init(&server_loop, testing.allocator);
+    const addr = try std.net.Address.parseIp4("127.0.0.1", 7000);
+    try server.bind(addr);
+
+    const Callbacks = struct {
+        var client_connected: bool = false;
+        var server_accepted: bool = false;
+        var server_loop_ptr: *Loop = undefined;
+        var alloc: std.mem.Allocator = undefined;
+
+        fn onServerConnection(server_handle: *Tcp, status: i32) void {
+            if (status >= 0) {
+                var client = Tcp.init(server_loop_ptr, alloc) catch return;
+                if (server_handle.accept(&client)) |_| {
+                    server_accepted = true;
+                } else |_| {
+                    client.deinit(alloc, onClose);
+                }
+            }
+        }
+
+        fn onClientConnect(_: *Tcp, status: i32) void {
+            if (status >= 0) {
+                client_connected = true;
+            }
+        }
+
+        fn onClose(_: *Tcp) void {}
+    };
+
+    Callbacks.server_loop_ptr = &server_loop;
+    Callbacks.alloc = testing.allocator;
+
+    // Start server and run one iteration to ensure it's listening
+    try server.listen(128, Callbacks.onServerConnection);
+    _ = try server_loop.run(.nowait);
+
+    // Now connect client
+    var client = try Tcp.init(&client_loop, testing.allocator);
+    try client.connect(addr, testing.allocator, Callbacks.onClientConnect);
+
+    // Run both loops until connection is established
+    while (!Callbacks.client_connected or !Callbacks.server_accepted) {
+        _ = try server_loop.run(.nowait);
+        _ = try client_loop.run(.nowait);
+    }
+
+    try testing.expect(Callbacks.client_connected);
+    try testing.expect(Callbacks.server_accepted);
+
+    client.deinit(testing.allocator, Callbacks.onClose);
+    server.deinit(testing.allocator, Callbacks.onClose);
+}
+
 // test "tcp: echo server with data transfer" {
 //     const testing = std.testing;
 //     std.debug.print("\n=== Starting echo server test ===\n", .{});
