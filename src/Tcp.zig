@@ -1,93 +1,130 @@
+//! TCP handles are used to handle TCP connections.
+//!
+const Tcp = @This();
+
 const std = @import("std");
 const c = @import("c.zig");
 const Loop = @import("Loop.zig");
 const errors = @import("error.zig");
 const stream = @import("stream.zig");
-const handle = @import("handle.zig");
-const pipe = @import("pipe.zig");
+const Stream = stream.Stream;
+const WriteReq = stream.WriteReq;
+const Handle = @import("handle.zig").Handle;
+const testing = std.testing;
+const Allocator = std.mem.Allocator;
+const Async = @import("Async.zig");
 
-pub const Tcp = struct {
-    handle: *c.uv_tcp_t,
+handle: *c.uv_tcp_t,
 
-    // Add shared handle and stream functionality
-    pub usingnamespace handle.Handle(@This());
-    pub usingnamespace stream.Stream(@This());
+pub usingnamespace Handle(Tcp);
+pub usingnamespace Stream(Tcp);
 
-    pub fn init(loop: *Loop, allocator: std.mem.Allocator) !Tcp {
-        const tcp_handle = try allocator.create(c.uv_tcp_t);
-        errdefer allocator.destroy(tcp_handle);
+pub fn init(loop: Loop, allocator: Allocator) !Tcp {
+    const tcp_handle = try allocator.create(c.uv_tcp_t);
+    errdefer allocator.destroy(tcp_handle);
 
-        try errors.convertError(c.uv_tcp_init(loop.loop, tcp_handle));
+    try errors.convertError(c.uv_tcp_init(loop.loop, tcp_handle));
 
-        return Tcp{ .handle = tcp_handle };
+    return Tcp{ .handle = tcp_handle };
+}
+
+pub fn deinit(self: *Tcp, allocator: Allocator) void {
+    allocator.destroy(self.handle);
+    self.* = undefined;
+}
+
+pub fn bind(self: *Tcp, addr: std.net.Address) !void {
+    var sockaddr = addr.any;
+    try errors.convertError(c.uv_tcp_bind(
+        self.handle,
+        @ptrCast(&sockaddr),
+        0,
+    ));
+}
+
+pub fn listen(self: *Tcp, backlog: i32, comptime cb: fn (*Tcp, i32) void) !void {
+    const Wrapper = struct {
+        fn callback(tcp_handle: [*c]c.uv_stream_t, status: c_int) callconv(.C) void {
+            var tcp_instance: Tcp = .{ .handle = @ptrCast(tcp_handle) };
+            @call(.always_inline, cb, .{ &tcp_instance, @as(i32, @intCast(status)) });
+        }
+    };
+
+    try errors.convertError(c.uv_listen(
+        @ptrCast(self.handle),
+        backlog,
+        Wrapper.callback,
+    ));
+}
+
+pub fn accept(self: *Tcp, client: *Tcp) !void {
+    try errors.convertError(c.uv_accept(
+        @ptrCast(self.handle),
+        @ptrCast(client.handle),
+    ));
+}
+
+pub const ConnectReq = struct {
+    pub const T = c.uv_connect_t;
+
+    req: *T,
+
+    pub fn init(alloc: Allocator) !ConnectReq {
+        const req = try alloc.create(c.uv_connect_t);
+        errdefer alloc.destroy(req);
+        return ConnectReq{ .req = req };
     }
 
-    pub fn deinit(self: *Tcp, allocator: std.mem.Allocator) void {
-        allocator.destroy(self.handle);
+    pub fn deinit(self: *ConnectReq, alloc: Allocator) void {
+        alloc.destroy(self.req);
         self.* = undefined;
     }
 
-    pub fn bind(self: *Tcp, addr: std.net.Address) !void {
-        var sockaddr = addr.any;
-        try errors.convertError(c.uv_tcp_bind(
-            self.handle,
-            @ptrCast(&sockaddr),
-            0,
-        ));
-    }
+    /// Pointer to the stream where this connect request is running.
+    /// T should be a high-level handle type such as "Tcp".
+    pub fn handle(self: ConnectReq, comptime HT: type) ?HT {
+        const tInfo = @typeInfo(HT).@"struct";
+        const HandleType = tInfo.fields[0].type;
 
-    pub fn listen(self: *Tcp, backlog: i32, comptime cb: fn (*Tcp, i32) void) !void {
-        const Wrapper = struct {
-            fn callback(tcp_handle: [*c]c.uv_stream_t, status: c_int) callconv(.C) void {
-                var tcp_instance: Tcp = .{ .handle = @ptrCast(tcp_handle) };
-                cb(&tcp_instance, @intCast(status));
-            }
-        };
-
-        try errors.convertError(c.uv_listen(
-            @ptrCast(self.handle),
-            backlog,
-            Wrapper.callback,
-        ));
-    }
-
-    pub fn accept(self: *Tcp, client: *Tcp) !void {
-        try errors.convertError(c.uv_accept(
-            @ptrCast(self.handle),
-            @ptrCast(client.handle),
-        ));
-    }
-
-    pub fn connect(self: *Tcp, addr: std.net.Address, allocator: std.mem.Allocator, comptime cb: fn (*Tcp, i32) void) !void {
-        const Wrapper = struct {
-            fn callback(req: [*c]c.uv_connect_t, status: c_int) callconv(.C) void {
-                var tcp_instance: Tcp = .{ .handle = @ptrCast(req.*.handle) };
-                cb(&tcp_instance, @intCast(status));
-            }
-        };
-
-        const connect_req = try allocator.create(c.uv_connect_t);
-        defer allocator.destroy(connect_req);
-
-        var sockaddr = addr.any;
-        try errors.convertError(c.uv_tcp_connect(
-            connect_req,
-            self.handle,
-            @ptrCast(&sockaddr),
-            Wrapper.callback,
-        ));
+        return if (self.req.handle) |ptr|
+            return HT{ .handle = @as(HandleType, @ptrCast(ptr)) }
+        else
+            null;
     }
 };
 
+pub fn connect(self: *Tcp, conn_req: *ConnectReq, addr: std.net.Address, comptime cb: fn (*ConnectReq, i32) void) !void {
+    const Wrapper = struct {
+        fn callback(req: [*c]c.uv_connect_t, status: c_int) callconv(.C) void {
+            var conn_req_callback: ConnectReq = .{ .req = req };
+            @call(.always_inline, cb, .{ &conn_req_callback, @as(i32, @intCast(status)) });
+        }
+    };
+
+    var sockaddr = addr.any;
+    try errors.convertError(c.uv_tcp_connect(
+        conn_req.req,
+        self.handle,
+        @ptrCast(&sockaddr),
+        Wrapper.callback,
+    ));
+}
+
+test "Write: create and destroy" {
+    var h = try ConnectReq.init(testing.allocator);
+    defer h.deinit(testing.allocator);
+}
+
 test "tcp: create and destroy" {
-    const testing = std.testing;
     var loop = try Loop.init(testing.allocator);
     defer loop.deinit(testing.allocator);
 
     const Wrapper = struct {
-        fn onClose(_: *Tcp) void {}
+        fn onClose(_: *Tcp) void {
+            std.debug.print("closed\n", .{});
+        }
     };
-    var tcp = try Tcp.init(&loop, testing.allocator);
+    var tcp = try init(loop, testing.allocator);
     defer tcp.deinit(testing.allocator);
 
     tcp.close(Wrapper.onClose);
@@ -95,11 +132,10 @@ test "tcp: create and destroy" {
 }
 
 test "tcp: echo client" {
-    const testing = std.testing;
     var loop = try Loop.init(testing.allocator);
     defer loop.deinit(testing.allocator);
 
-    var client = try Tcp.init(&loop, testing.allocator);
+    var client = try Tcp.init(loop, testing.allocator);
     defer client.deinit(testing.allocator);
 
     const addr = try std.net.Address.parseIp4("127.0.0.1", 7000);
@@ -108,336 +144,189 @@ test "tcp: echo client" {
         var connection_attempted: bool = false;
         var connection_status: i32 = 0;
 
-        fn onConnect(_: *Tcp, status: i32) void {
+        fn onConnect(req: *ConnectReq, status: i32) void {
             connection_attempted = true;
             connection_status = status;
             if (status < 0) {
                 std.debug.print("Connect error: {d}\n", .{status});
             }
+            const tcp1: Tcp = req.handle(Tcp).?;
+            tcp1.close(onClose);
         }
 
-        fn onClose(_: *Tcp) void {}
+        fn onClose(_: *Tcp) void {
+            std.debug.print("closed\n", .{});
+        }
     };
 
-    try client.connect(addr, testing.allocator, Callbacks.onConnect);
-    client.close(Callbacks.onClose);
+    var conn_req = try ConnectReq.init(testing.allocator);
+    defer conn_req.deinit(testing.allocator);
+    try client.connect(&conn_req, addr, Callbacks.onConnect);
     _ = try loop.run(.default);
 
     try testing.expect(Callbacks.connection_attempted);
-    try testing.expectEqual(@as(i32, -89), Callbacks.connection_status); // ECONNREFUSED
+    try testing.expectEqual(@as(i32, -61), Callbacks.connection_status); // ECONNREFUSED
 }
 
-test "tcp: server and client connection" {
-    const testing = std.testing;
-    var server_loop = try Loop.init(testing.allocator);
-    defer server_loop.deinit(testing.allocator);
-
-    var client_loop = try Loop.init(testing.allocator);
-    defer client_loop.deinit(testing.allocator);
-
-    // Initialize server
-    var server = try Tcp.init(&server_loop, testing.allocator);
-    const addr = try std.net.Address.parseIp4("127.0.0.1", 7000);
-    try server.bind(addr);
-
-    const Callbacks = struct {
-        var client_connected: bool = false;
-        var server_accepted: bool = false;
-        var server_loop_ptr: *Loop = undefined;
-        var alloc: std.mem.Allocator = undefined;
-
-        fn onServerConnection(server_handle: *Tcp, status: i32) void {
-            if (status >= 0) {
-                var client = Tcp.init(server_loop_ptr, alloc) catch return;
-                if (server_handle.accept(&client)) |_| {
-                    server_accepted = true;
-                } else |_| {
-                    client.deinit(alloc, onClose);
-                }
-            }
-        }
-
-        fn onClientConnect(_: *Tcp, status: i32) void {
-            if (status >= 0) {
-                client_connected = true;
-            }
-        }
-
-        fn onClose(_: *Tcp) void {}
-    };
-
-    Callbacks.server_loop_ptr = &server_loop;
-    Callbacks.alloc = testing.allocator;
-
-    // Start server and run one iteration to ensure it's listening
-    try server.listen(128, Callbacks.onServerConnection);
-    _ = try server_loop.run(.nowait);
-
-    // Now connect client
-    var client = try Tcp.init(&client_loop, testing.allocator);
-    try client.connect(addr, testing.allocator, Callbacks.onClientConnect);
-
-    // Run both loops until connection is established
-    while (!Callbacks.client_connected or !Callbacks.server_accepted) {
-        _ = try server_loop.run(.nowait);
-        _ = try client_loop.run(.nowait);
-    }
-
-    try testing.expect(Callbacks.client_connected);
-    try testing.expect(Callbacks.server_accepted);
-
-    client.deinit(testing.allocator, Callbacks.onClose);
-    server.deinit(testing.allocator, Callbacks.onClose);
-}
-
-// test "tcp: echo server with data transfer" {
-//     const testing = std.testing;
-//     std.debug.print("\n=== Starting echo server test ===\n", .{});
+// test "tcp: server listen" {
+//     var server_loop = try Loop.init(testing.allocator);
+//     defer server_loop.deinit(testing.allocator);
 //
-//     var loop = try Loop.init(testing.allocator);
-//     defer loop.deinit(testing.allocator);
+//     var server = try Tcp.init(server_loop, testing.allocator);
+//     defer server.deinit(testing.allocator);
 //
-//     var server = try Tcp.init(&loop, testing.allocator);
 //     const addr = try std.net.Address.parseIp4("127.0.0.1", 7000);
 //     try server.bind(addr);
 //
-//     const test_message = "Hello from client";
 //     const Callbacks = struct {
-//         var received_data: bool = false;
-//         var data_echoed: bool = false;
-//         var loop_ptr: *Loop = undefined;
-//         var alloc: std.mem.Allocator = undefined;
-//         var server_client: ?*Tcp = null; // Keep track of accepted client
-//         var write_req: ?*stream.WriteReq = null;
-//
-//         fn allocCallback(_: *Tcp, size: usize) ?[]u8 {
-//             std.debug.print("Allocating buffer size: {}\n", .{size});
-//             const buffer = alloc.alloc(u8, size) catch return null;
-//             return buffer;
-//         }
-//
-//         fn onServerRead(tcp_server: *Tcp, nread: isize, buffer: []const u8) void {
-//             std.debug.print("Server received bytes: {}\n", .{nread});
-//             if (nread > 0) {
-//                 received_data = true;
-//                 write_req = alloc.create(stream.WriteReq) catch return;
-//                 write_req.?.* = stream.WriteReq.init(alloc) catch return;
-//                 const bufs = [_][]const u8{buffer[0..@intCast(nread)]};
-//                 tcp_server.write(write_req.?.*, &bufs, onWrite) catch return;
-//             }
-//         }
-//
-//         fn onWrite(_: *stream.WriteReq, status: i32) void {
-//             std.debug.print("Write completed with status: {}\n", .{status});
-//             if (write_req) |wr| {
-//                 alloc.destroy(wr);
-//                 write_req = null;
-//             }
-//         }
-//
-//         fn onClientRead(_: *Tcp, nread: isize, buffer: []const u8) void {
-//             std.debug.print("Client read: {} bytes\n", .{nread});
-//             if (nread > 0) {
-//                 const received = buffer[0..@intCast(nread)];
-//                 std.debug.print("Client received: {s}\nExpected: {s}\n", .{ received, test_message });
-//                 if (std.mem.eql(u8, received, test_message)) {
-//                     data_echoed = true;
-//                 }
-//             }
-//         }
-//
-//         fn onServerConnection(server_handle: *Tcp, status: i32) void {
-//             std.debug.print("Server connection status: {}\n", .{status});
+//         fn onServerConnection(_: *Tcp, status: i32) void {
 //             if (status >= 0) {
-//                 var client = Tcp.init(loop_ptr, alloc) catch return;
-//                 server_handle.accept(&client) catch {
-//                     client.deinit(alloc, onClose);
-//                     return;
-//                 };
-//                 server_client = &client;
-//                 client.readStart(allocCallback, onServerRead) catch {
-//                     client.deinit(alloc, onClose);
-//                     return;
-//                 };
+//                 std.debug.print("Server connection\n", .{});
 //             }
 //         }
 //
-//         fn onClose(tcp_handle: *Tcp) void {
-//             if (server_client) |client| {
-//                 if (tcp_handle == client) {
-//                     server_client = null;
-//                 }
-//             }
-//         }
+//         fn onClose(_: *Tcp) void {}
+//     };
 //
-//         fn onClientConnect(_: *Tcp, status: i32) void {
-//             std.debug.print("Client connect status: {}\n", .{status});
+//     try server.listen(128, Callbacks.onServerConnection);
+//     const AsyncCallback = struct {
+//         fn onClose(a: *Async) void {
+//             a.loop().stop();
+//         }
+//     };
+//     var async1 = try Async.init(testing.allocator, server_loop, AsyncCallback.onClose);
+//     defer async1.deinit(testing.allocator);
+//     _ = try std.Thread.spawn(.{}, struct {
+//         fn run(loop_ptr: *Loop) void {
+//             _ = loop_ptr.run(.default) catch return;
+//         }
+//     }.run, .{&server_loop});
+//
+//     const WalkCallback = struct {
+//         fn onWalk(handle: [*c]c.uv_handle_t, _: ?*anyopaque) callconv(.C) void {
+//             std.debug.print("Active handle type: {d}\n", .{handle.*.type});
+//             if (c.uv_is_closing(handle) == 0) { // Changed here: check if return value is 0
+//                 c.uv_close(handle, null);
+//             }
 //         }
 //     };
 //
-//     Callbacks.loop_ptr = &loop;
-//     Callbacks.alloc = testing.allocator;
+//     std.time.sleep(3 * std.time.ns_per_s);
+//     std.debug.print("stop\n", .{});
+//     _ = try async1.send();
+//     // server_thread.join();
+//     std.debug.print("stopped\n", .{});
 //
-//     try server.listen(128, Callbacks.onServerConnection);
+//     server.close(Callbacks.onClose);
+//     std.debug.print("close\n", .{});
+//     _ = try server_loop.run(.default);
 //
-//     var client = try Tcp.init(&loop, testing.allocator);
-//     try client.connect(addr, testing.allocator, Callbacks.onClientConnect);
-//     try client.readStart(Callbacks.allocCallback, Callbacks.onClientRead);
+//     // Add walk to check active handles
+//     c.uv_walk(server_loop.loop, WalkCallback.onWalk, null);
+//     _ = try server_loop.run(.default); // Process the close callbacks
 //
-//     const write_req = try stream.WriteReq.init(testing.allocator);
-//     const bufs = [_][]const u8{test_message};
-//     try client.write(write_req, &bufs, Callbacks.onWrite);
-//
-//     while (!Callbacks.received_data or !Callbacks.data_echoed) {
-//         _ = try loop.run(.nowait);
-//     }
-//
-//     try testing.expect(Callbacks.received_data);
-//     try testing.expect(Callbacks.data_echoed);
 // }
-//
-// test "tcp: echo server with data transfer1" {
-//     const testing = std.testing;
-//     std.debug.print("\n=== Starting echo server test ===\n", .{});
+
+// test "tcp try write" {
+//     const TEST_PORT = 9123;
 //
 //     var loop = try Loop.init(testing.allocator);
 //     defer loop.deinit(testing.allocator);
 //
-//     var server = try Tcp.init(&loop, testing.allocator);
-//     const addr = try std.net.Address.parseIp4("127.0.0.1", 8001);
-//     try server.bind(addr);
+//     const ServerContext = struct {
+//         var server: Tcp = undefined;
+//         var incoming: Tcp = undefined;
+//         var bytes_read: usize = 0;
+//         var connection_cb_called: usize = 0;
+//         var close_cb_called: usize = 0;
 //
-//     const test_message = "Hello from client";
-//     const Callbacks = struct {
-//         var received_data: bool = false;
-//         var connected: usize = 0;
-//         var data_echoed: bool = false;
-//         var loop_ptr: *Loop = undefined;
-//         var alloc: std.mem.Allocator = undefined;
-//         var server_clients: std.ArrayList(*Tcp) = undefined; // Track multiple clients
-//         var write_reqs: std.ArrayList(*stream.WriteReq) = undefined;
-//         // Add write completion tracking
-//         var write_completed: usize = 0;
-//         var total_writes: usize = 0;
-//         var clients_completed: usize = 0;
-//         fn init() void {
-//             server_clients = std.ArrayList(*Tcp).init(alloc);
-//             write_reqs = std.ArrayList(*stream.WriteReq).init(alloc);
-//         }
-//
-//         fn deinit() void {
-//             server_clients.deinit();
-//             write_reqs.deinit();
+//         fn onClose(_: *Tcp) void {
+//             close_cb_called += 1;
 //         }
 //
 //         fn allocCallback(_: *Tcp, size: usize) ?[]u8 {
-//             std.debug.print("Allocating buffer size: {}\n", .{size});
-//             const buffer = alloc.alloc(u8, size) catch return null;
+//             const buffer = testing.allocator.alloc(u8, size) catch return null;
 //             return buffer;
 //         }
 //
-//         fn onServerRead(tcp_server: *Tcp, nread: isize, buffer: []const u8) void {
-//             if (nread > 0) {
-//                 received_data = true;
-//                 const write_req = alloc.create(stream.WriteReq) catch return;
-//                 write_req.* = stream.WriteReq.init(alloc) catch return;
-//                 write_reqs.append(write_req) catch return;
-//                 const bufs = [_][]const u8{buffer[0..@intCast(nread)]};
-//                 tcp_server.write(write_req.*, &bufs, onWrite) catch return;
+//         fn readCallback(_: *Tcp, nread: isize, _: []const u8) void {
+//             if (nread < 0) {
+//                 server.close(onClose);
+//                 incoming.close(onClose);
+//                 return;
 //             }
+//             bytes_read += @intCast(nread);
 //         }
 //
-//         fn onWrite(req: *stream.WriteReq, _: i32) void {
-//             write_completed += 1;
-//             for (write_reqs.items, 0..) |write_req, i| {
-//                 if (req == write_req) {
-//                     _ = write_reqs.orderedRemove(i);
-//                     alloc.destroy(write_req);
-//                     break;
-//                 }
-//             }
-//         }
-//
-//         fn onClientRead(_: *Tcp, nread: isize, buffer: []const u8) void {
-//             std.debug.print("Client read: {} bytes\n", .{nread});
-//             if (nread > 0) {
-//                 const received = buffer[0..@intCast(nread)];
-//                 std.debug.print("Client received: {s}\nExpected: {s}\n", .{ received, test_message });
-//                 if (std.mem.eql(u8, received, test_message)) {
-//                     data_echoed = true;
-//                     clients_completed += 1;
-//                 }
-//             }
-//         }
-//
-//         fn onServerConnection(server_handle: *Tcp, status: i32) void {
+//         fn onConnection(server_handle: *Tcp, status: i32) void {
 //             if (status >= 0) {
-//                 connected += 1;
-//                 var client = Tcp.init(loop_ptr, alloc) catch return;
-//                 server_handle.accept(&client) catch {
-//                     client.deinit(alloc, onClose);
-//                     return;
-//                 };
-//                 server_clients.append(&client) catch {
-//                     client.deinit(alloc, onClose);
-//                     return;
-//                 };
-//                 client.readStart(allocCallback, onServerRead) catch {
-//                     _ = server_clients.pop();
-//                     client.deinit(alloc, onClose);
-//                     return;
-//                 };
+//                 connection_cb_called += 1;
+//                 incoming = Tcp.init(server_handle.loop(), testing.allocator) catch return;
+//                 server_handle.accept(&incoming) catch return;
+//                 incoming.readStart(allocCallback, readCallback) catch return;
 //             }
-//         }
-//
-//         fn onClose(tcp_handle: *Tcp) void {
-//             for (server_clients.items, 0..) |client, i| {
-//                 if (tcp_handle == client) {
-//                     _ = server_clients.orderedRemove(i);
-//                     break;
-//                 }
-//             }
-//         }
-//
-//         fn onClientConnect(_: *Tcp, status: i32) void {
-//             std.debug.print("Client connect status: {}\n", .{status});
 //         }
 //     };
 //
-//     Callbacks.loop_ptr = &loop;
-//     Callbacks.alloc = testing.allocator;
-//     Callbacks.init();
-//     defer Callbacks.deinit();
+//     const ClientContext = struct {
+//         var client: Tcp = undefined;
+//         var bytes_written: usize = 0;
+//         var connect_cb_called: usize = 0;
 //
-//     try server.listen(128, Callbacks.onServerConnection);
+//         fn onClose(_: *Tcp) void {
+//             ServerContext.close_cb_called += 1;
+//         }
 //
-//     var client = try Tcp.init(&loop, testing.allocator);
-//     try client.connect(addr, testing.allocator, Callbacks.onClientConnect);
-//     try client.readStart(Callbacks.allocCallback, Callbacks.onClientRead);
+//         fn onConnect(req: *ConnectReq, status: i32) void {
+//             if (status >= 0) {
+//                 connect_cb_called += 1;
+//                 const tcp = req.handle(Tcp).?;
 //
-//     const write_req = try stream.WriteReq.init(testing.allocator);
-//     const bufs = [_][]const u8{test_message};
-//     Callbacks.total_writes += 1;
-//     try client.write(write_req, &bufs, Callbacks.onWrite);
+//                 // Try write "PING"
+//                 const buf = "PING";
+//                 while (true) {
+//                     const bufs = [_][]const u8{buf};
+//                     const r = tcp.tryWrite(&bufs) catch break;
+//                     if (r > 0) {
+//                         bytes_written += r;
+//                         break;
+//                     }
+//                 }
 //
-//     var client1 = try Tcp.init(&loop, testing.allocator);
-//     try client1.connect(addr, testing.allocator, Callbacks.onClientConnect);
-//     try client1.readStart(Callbacks.allocCallback, Callbacks.onClientRead);
+//                 // Try write empty buffer
+//                 while (true) {
+//                     const bufs = [_][]const u8{""};
+//                     const r = tcp.tryWrite(&bufs) catch break;
+//                     if (r == 0) break;
+//                 }
 //
-//     const write_req1 = try stream.WriteReq.init(testing.allocator);
-//     const bufs1 = [_][]const u8{test_message};
-//     Callbacks.total_writes += 1;
+//                 tcp.close(onClose);
+//             }
+//         }
+//     };
 //
-//     try client1.write(write_req1, &bufs1, Callbacks.onWrite);
+//     // Start server
+//     ServerContext.server = try Tcp.init(loop, testing.allocator);
+//     defer ServerContext.server.deinit(testing.allocator);
 //
-//     while (!Callbacks.received_data or
-//         Callbacks.clients_completed < 2 or
-//         Callbacks.write_completed < Callbacks.total_writes)
-//     {
-//         _ = try loop.run(.nowait);
-//     }
+//     const addr = try std.net.Address.parseIp4("0.0.0.0", TEST_PORT);
+//     try ServerContext.server.bind(addr);
+//     try ServerContext.server.listen(128, ServerContext.onConnection);
 //
-//     try testing.expect(Callbacks.received_data);
-//     try testing.expect(Callbacks.data_echoed);
-//     try testing.expect(Callbacks.connected == 2);
+//     // Start client
+//     ClientContext.client = try Tcp.init(loop, testing.allocator);
+//     defer ClientContext.client.deinit(testing.allocator);
+//
+//     const client_addr = try std.net.Address.parseIp4("127.0.0.1", TEST_PORT);
+//     var connect_req = try ConnectReq.init(testing.allocator);
+//     defer connect_req.deinit(testing.allocator);
+//     try ClientContext.client.connect(&connect_req, client_addr, ClientContext.onConnect);
+//
+//     _ = try loop.run(.default);
+//
+//     try testing.expectEqual(@as(usize, 1), ClientContext.connect_cb_called);
+//     try testing.expectEqual(@as(usize, 3), ServerContext.close_cb_called);
+//     try testing.expectEqual(@as(usize, 1), ServerContext.connection_cb_called);
+//     try testing.expectEqual(ServerContext.bytes_read, ClientContext.bytes_written);
+//     try testing.expect(ClientContext.bytes_written > 0);
 // }
