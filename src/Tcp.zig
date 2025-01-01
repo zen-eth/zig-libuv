@@ -168,165 +168,108 @@ test "tcp: echo client" {
     try testing.expectEqual(@as(i32, -61), Callbacks.connection_status); // ECONNREFUSED
 }
 
-// test "tcp: server listen" {
-//     var server_loop = try Loop.init(testing.allocator);
-//     defer server_loop.deinit(testing.allocator);
-//
-//     var server = try Tcp.init(server_loop, testing.allocator);
-//     defer server.deinit(testing.allocator);
-//
-//     const addr = try std.net.Address.parseIp4("127.0.0.1", 7000);
-//     try server.bind(addr);
-//
-//     const Callbacks = struct {
-//         fn onServerConnection(_: *Tcp, status: i32) void {
-//             if (status >= 0) {
-//                 std.debug.print("Server connection\n", .{});
-//             }
-//         }
-//
-//         fn onClose(_: *Tcp) void {}
-//     };
-//
-//     try server.listen(128, Callbacks.onServerConnection);
-//     const AsyncCallback = struct {
-//         fn onClose(a: *Async) void {
-//             a.loop().stop();
-//         }
-//     };
-//     var async1 = try Async.init(testing.allocator, server_loop, AsyncCallback.onClose);
-//     defer async1.deinit(testing.allocator);
-//     _ = try std.Thread.spawn(.{}, struct {
-//         fn run(loop_ptr: *Loop) void {
-//             _ = loop_ptr.run(.default) catch return;
-//         }
-//     }.run, .{&server_loop});
-//
-//     const WalkCallback = struct {
-//         fn onWalk(handle: [*c]c.uv_handle_t, _: ?*anyopaque) callconv(.C) void {
-//             std.debug.print("Active handle type: {d}\n", .{handle.*.type});
-//             if (c.uv_is_closing(handle) == 0) { // Changed here: check if return value is 0
-//                 c.uv_close(handle, null);
-//             }
-//         }
-//     };
-//
-//     std.time.sleep(3 * std.time.ns_per_s);
-//     std.debug.print("stop\n", .{});
-//     _ = try async1.send();
-//     // server_thread.join();
-//     std.debug.print("stopped\n", .{});
-//
-//     server.close(Callbacks.onClose);
-//     std.debug.print("close\n", .{});
-//     _ = try server_loop.run(.default);
-//
-//     // Add walk to check active handles
-//     c.uv_walk(server_loop.loop, WalkCallback.onWalk, null);
-//     _ = try server_loop.run(.default); // Process the close callbacks
-//
-// }
+test "tcp try write" {
+    const TEST_PORT = 9123;
 
-// test "tcp try write" {
-//     const TEST_PORT = 9123;
-//
-//     var loop = try Loop.init(testing.allocator);
-//     defer loop.deinit(testing.allocator);
-//
-//     const ServerContext = struct {
-//         var server: Tcp = undefined;
-//         var incoming: Tcp = undefined;
-//         var bytes_read: usize = 0;
-//         var connection_cb_called: usize = 0;
-//         var close_cb_called: usize = 0;
-//
-//         fn onClose(_: *Tcp) void {
-//             close_cb_called += 1;
-//         }
-//
-//         fn allocCallback(_: *Tcp, size: usize) ?[]u8 {
-//             const buffer = testing.allocator.alloc(u8, size) catch return null;
-//             return buffer;
-//         }
-//
-//         fn readCallback(_: *Tcp, nread: isize, _: []const u8) void {
-//             if (nread < 0) {
-//                 server.close(onClose);
-//                 incoming.close(onClose);
-//                 return;
-//             }
-//             bytes_read += @intCast(nread);
-//         }
-//
-//         fn onConnection(server_handle: *Tcp, status: i32) void {
-//             if (status >= 0) {
-//                 connection_cb_called += 1;
-//                 incoming = Tcp.init(server_handle.loop(), testing.allocator) catch return;
-//                 server_handle.accept(&incoming) catch return;
-//                 incoming.readStart(allocCallback, readCallback) catch return;
-//             }
-//         }
-//     };
-//
-//     const ClientContext = struct {
-//         var client: Tcp = undefined;
-//         var bytes_written: usize = 0;
-//         var connect_cb_called: usize = 0;
-//
-//         fn onClose(_: *Tcp) void {
-//             ServerContext.close_cb_called += 1;
-//         }
-//
-//         fn onConnect(req: *ConnectReq, status: i32) void {
-//             if (status >= 0) {
-//                 connect_cb_called += 1;
-//                 const tcp = req.handle(Tcp).?;
-//
-//                 // Try write "PING"
-//                 const buf = "PING";
-//                 while (true) {
-//                     const bufs = [_][]const u8{buf};
-//                     const r = tcp.tryWrite(&bufs) catch break;
-//                     if (r > 0) {
-//                         bytes_written += r;
-//                         break;
-//                     }
-//                 }
-//
-//                 // Try write empty buffer
-//                 while (true) {
-//                     const bufs = [_][]const u8{""};
-//                     const r = tcp.tryWrite(&bufs) catch break;
-//                     if (r == 0) break;
-//                 }
-//
-//                 tcp.close(onClose);
-//             }
-//         }
-//     };
-//
-//     // Start server
-//     ServerContext.server = try Tcp.init(loop, testing.allocator);
-//     defer ServerContext.server.deinit(testing.allocator);
-//
-//     const addr = try std.net.Address.parseIp4("0.0.0.0", TEST_PORT);
-//     try ServerContext.server.bind(addr);
-//     try ServerContext.server.listen(128, ServerContext.onConnection);
-//
-//     // Start client
-//     ClientContext.client = try Tcp.init(loop, testing.allocator);
-//     defer ClientContext.client.deinit(testing.allocator);
-//
-//     const client_addr = try std.net.Address.parseIp4("127.0.0.1", TEST_PORT);
-//     var connect_req = try ConnectReq.init(testing.allocator);
-//     defer connect_req.deinit(testing.allocator);
-//     try ClientContext.client.connect(&connect_req, client_addr, ClientContext.onConnect);
-//
-//     _ = try loop.run(.default);
-//
-//     try testing.expectEqual(@as(usize, 1), ClientContext.connect_cb_called);
-//     try testing.expectEqual(@as(usize, 3), ServerContext.close_cb_called);
-//     try testing.expectEqual(@as(usize, 1), ServerContext.connection_cb_called);
-//     try testing.expectEqual(ServerContext.bytes_read, ClientContext.bytes_written);
-//     try testing.expect(ClientContext.bytes_written > 0);
-// }
+    var loop = try Loop.init(testing.allocator);
+    defer loop.deinit(testing.allocator);
+
+    const ServerContext = struct {
+        var server: Tcp = undefined;
+        var incoming: Tcp = undefined;
+        var bytes_read: usize = 0;
+        var connection_cb_called: usize = 0;
+        var close_cb_called: usize = 0;
+
+        fn onClose(_: *Tcp) void {
+            close_cb_called += 1;
+        }
+
+        fn allocCallback(_: *Tcp, size: usize) ?[]u8 {
+            const buffer = testing.allocator.alloc(u8, size) catch return null;
+            return buffer;
+        }
+
+        fn readCallback(_: *Tcp, nread: isize, buf: []const u8) void {
+            defer testing.allocator.free(buf);
+            if (nread < 0) {
+                server.close(onClose);
+                incoming.close(onClose);
+                return;
+            }
+            bytes_read += @intCast(nread);
+        }
+
+        fn onConnection(server_handle: *Tcp, status: i32) void {
+            if (status >= 0) {
+                connection_cb_called += 1;
+                incoming = Tcp.init(server_handle.loop(), testing.allocator) catch return;
+                server_handle.accept(&incoming) catch return;
+                incoming.readStart(allocCallback, readCallback) catch return;
+            }
+        }
+    };
+
+    const ClientContext = struct {
+        var client: Tcp = undefined;
+        var bytes_written: usize = 0;
+        var connect_cb_called: usize = 0;
+
+        fn onClose(_: *Tcp) void {
+            ServerContext.close_cb_called += 1;
+        }
+
+        fn onConnect(req: *ConnectReq, status: i32) void {
+            if (status >= 0) {
+                connect_cb_called += 1;
+                const tcp = req.handle(Tcp).?;
+
+                // Try write "PING"
+                const buf = "PING";
+                while (true) {
+                    const bufs = [_][]const u8{buf};
+                    const r = tcp.tryWrite(&bufs) catch break;
+                    if (r > 0) {
+                        bytes_written += r;
+                        break;
+                    }
+                }
+
+                // Try write empty buffer
+                while (true) {
+                    const bufs = [_][]const u8{""};
+                    const r = tcp.tryWrite(&bufs) catch break;
+                    if (r == 0) break;
+                }
+
+                tcp.close(onClose);
+            }
+        }
+    };
+
+    // Start server
+    ServerContext.server = try Tcp.init(loop, testing.allocator);
+    defer ServerContext.incoming.deinit(testing.allocator);
+    defer ServerContext.server.deinit(testing.allocator);
+
+    const addr = try std.net.Address.parseIp4("0.0.0.0", TEST_PORT);
+    try ServerContext.server.bind(addr);
+    try ServerContext.server.listen(128, ServerContext.onConnection);
+
+    // Start client
+    ClientContext.client = try Tcp.init(loop, testing.allocator);
+    defer ClientContext.client.deinit(testing.allocator);
+
+    const client_addr = try std.net.Address.parseIp4("127.0.0.1", TEST_PORT);
+    var connect_req = try ConnectReq.init(testing.allocator);
+    defer connect_req.deinit(testing.allocator);
+    try ClientContext.client.connect(&connect_req, client_addr, ClientContext.onConnect);
+
+    _ = try loop.run(.default);
+
+    try testing.expectEqual(@as(usize, 1), ClientContext.connect_cb_called);
+    try testing.expectEqual(@as(usize, 3), ServerContext.close_cb_called);
+    try testing.expectEqual(@as(usize, 1), ServerContext.connection_cb_called);
+    try testing.expectEqual(ServerContext.bytes_read, ClientContext.bytes_written);
+    try testing.expect(ClientContext.bytes_written > 0);
+}
