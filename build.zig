@@ -17,12 +17,18 @@ pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const clibuv = b.createModule(.{
+        .root_source_file = b.path("src/c.zig"),
+        .link_libc = true,
+    });
+
     // Create module
     const module = b.addModule("libuv", .{
         .link_libc = true,
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
+        .imports = &.{.{ .name = "c", .module = clibuv }},
     });
     module.addIncludePath(.{ .cwd_relative = include_path });
 
