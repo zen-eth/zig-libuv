@@ -7,6 +7,8 @@
         "build.zig.zon",
         "LICENSE",
         "README.md",
+        "vendor",
+        "libuv"
     },
     .dependencies = .{},
 }
