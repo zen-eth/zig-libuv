@@ -18,81 +18,40 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const clibuv = b.createModule(.{
-        .root_source_file  = b.path("src/c.zig") ,
-        .imports = &.{},
+        .root_source_file = b.path("src/c.zig"),
+        .link_libc = true,
     });
     clibuv.addIncludePath(.{ .cwd_relative = include_path });
 
     const tests = b.addTest(.{
+        .name = "pixman-test",
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
-
-    const lib = try buildLibuv(b, tests);
+    tests.root_module.addImport("c", clibuv);
+    const lib = try link(b, tests);
     clibuv.linkLibrary(lib);
 
-    const module = b.createModule(.{
+    // Create module
+    const module = b.addModule("libuv", .{
+        .link_libc = true,
         .root_source_file = b.path("src/main.zig"),
-        .imports  = &.{
-            .{
-                .name = "c",
-                .module = clibuv,
-            },
-        },
+        .target = target,
+        .optimize = optimize,
+        .imports = &.{.{ .name = "c", .module = clibuv }},
     });
     module.addIncludePath(.{ .cwd_relative = include_path });
+
     module.linkLibrary(lib);
-
-    tests.root_module.addImport("c", clibuv);
-    tests.linkLibrary(lib);
-
-    const test_step = b.step("test", "Run tests");
-    test_step.dependOn(&b.addRunArtifact(tests).step);
-
+    module.addImport("c", clibuv);
     b.installArtifact(lib);
     b.installArtifact(tests);
-}
 
-// pub fn build(b: *std.Build) !void {
-//     const target = b.standardTargetOptions(.{});
-//     const optimize = b.standardOptimizeOption(.{});
-//
-//     const clibuv = b.createModule(.{
-//         .root_source_file = b.path("src/c.zig"),
-//         .link_libc = true,
-//     });
-//     clibuv.addIncludePath(.{ .cwd_relative = include_path });
-//
-//     const tests = b.addTest(.{
-//         .name = "pixman-test",
-//         .root_source_file = b.path("src/main.zig"),
-//         .target = target,
-//         .optimize = optimize,
-//     });
-//     tests.root_module.addImport("c", clibuv);
-//     const lib = try link(b, tests);
-//     clibuv.linkLibrary(lib);
-//
-//     // Create module
-//     const module = b.addModule("libuv", .{
-//         .link_libc = true,
-//         .root_source_file = b.path("src/main.zig"),
-//         .target = target,
-//         .optimize = optimize,
-//         .imports = &.{.{ .name = "c", .module = clibuv }},
-//     });
-//     module.addIncludePath(.{ .cwd_relative = include_path });
-//
-//     module.linkLibrary(lib);
-//     module.addImport("c", clibuv);
-//     b.installArtifact(lib);
-//     b.installArtifact(tests);
-//
-//     const test_step = b.step("test", "Run tests");
-//     const tests_run = b.addRunArtifact(tests);
-//     test_step.dependOn(&tests_run.step);
-// }
+    const test_step = b.step("test", "Run tests");
+    const tests_run = b.addRunArtifact(tests);
+    test_step.dependOn(&tests_run.step);
+}
 
 pub fn link(b: *std.Build, step: *std.Build.Step.Compile) !*std.Build.Step.Compile {
     const libuv = try buildLibuv(b, step);
