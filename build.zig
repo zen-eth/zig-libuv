@@ -21,6 +21,16 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("src/c.zig"),
         .link_libc = true,
     });
+    clibuv.addIncludePath(.{ .cwd_relative = include_path });
+
+    const tests = b.addTest(.{
+        .name = "pixman-test",
+        .root_source_file = b.path("src/main.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    const lib = try link(b, tests);
+    clibuv.linkLibrary(lib);
 
     // Create module
     const module = b.addModule("libuv", .{
@@ -32,13 +42,6 @@ pub fn build(b: *std.Build) !void {
     });
     module.addIncludePath(.{ .cwd_relative = include_path });
 
-    const tests = b.addTest(.{
-        .name = "pixman-test",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
-    const lib = try link(b, tests);
     module.linkLibrary(lib);
     b.installArtifact(lib);
     b.installArtifact(tests);
