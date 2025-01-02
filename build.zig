@@ -19,7 +19,7 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
-    module.addIncludePath(.{ .cwd_relative = include_path });
+    module.addIncludePath(b.path("libuv/include/"));
 
     const tests = b.addTest(.{
         .name = "pixman-test",
@@ -40,7 +40,7 @@ pub fn build(b: *std.Build) !void {
 pub fn link(b: *std.Build, step: *std.Build.Step.Compile) !*std.Build.Step.Compile {
     const libuv = try buildLibuv(b, step);
     step.linkLibrary(libuv);
-    step.addIncludePath(.{ .cwd_relative = include_path });
+    step.addIncludePath(b.path("libuv/include/"));
     return libuv;
 }
 
@@ -56,10 +56,11 @@ pub fn buildLibuv(
     });
 
     // Include dirs
-    lib.addIncludePath(.{ .cwd_relative = include_path });
-    lib.addIncludePath(.{ .cwd_relative = root ++ "src" });
+    lib.addIncludePath(b.path("libuv/include/"));
+    lib.addIncludePath(b.path("libuv/src/"));
 
     lib.installHeadersDirectory(b.path("libuv/include/"), "", .{});
+    lib.installHeadersDirectory(b.path("libuv/src/"), "", .{});
 
     // Links
     if (target.result.os.tag == .windows) {
