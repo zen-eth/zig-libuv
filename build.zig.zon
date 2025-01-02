@@ -2,7 +2,7 @@
     .name = "libuv",
     .version = "0.1.0",
     .paths = .{
-        "src/",
+        "src",
         "build.zig",
         "build.zig.zon",
         "LICENSE",
