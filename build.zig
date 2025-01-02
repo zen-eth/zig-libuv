@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
 
     const clibuv = b.createModule(.{
-        .root_source_file = b.path("src/c.zig"),
+        .root_source_file  = b.path("src/c.zig") ,
         .imports = &.{},
     });
     clibuv.addIncludePath(.{ .cwd_relative = include_path });
@@ -34,7 +34,7 @@ pub fn build(b: *std.Build) !void {
 
     const module = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
-        .imports = &.{
+        .imports  = &.{
             .{
                 .name = "c",
                 .module = clibuv,
@@ -43,12 +43,6 @@ pub fn build(b: *std.Build) !void {
     });
     module.addIncludePath(.{ .cwd_relative = include_path });
     module.linkLibrary(lib);
-    _ = b.addModule("libuv", .{ .root_source_file = b.path("src/main.zig"), .imports = &.{
-        .{
-            .name = "c",
-            .module = clibuv,
-        },
-    } });
 
     tests.root_module.addImport("c", clibuv);
     tests.linkLibrary(lib);
