@@ -4,11 +4,6 @@ const std = @import("std");
 const root = thisDir() ++ "/libuv/";
 const include_path = root ++ "include";
 
-pub const pkg = .{
-    .name = "libuv",
-    .source = .{ .path = thisDir() ++ "/src/main.zig" },
-};
-
 fn thisDir() []const u8 {
     return std.fs.path.dirname(@src().file) orelse ".";
 }
@@ -63,6 +58,8 @@ pub fn buildLibuv(
     // Include dirs
     lib.addIncludePath(.{ .cwd_relative = include_path });
     lib.addIncludePath(.{ .cwd_relative = root ++ "src" });
+
+    lib.installHeadersDirectory(b.path("libuv/include/"), "", .{});
 
     // Links
     if (target.result.os.tag == .windows) {
