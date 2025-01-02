@@ -3,7 +3,7 @@ const Loop = @This();
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const testing = std.testing;
-const c = @import("c");
+const c = @import("c.zig");
 const errors = @import("error.zig");
 
 loop: *c.uv_loop_t,

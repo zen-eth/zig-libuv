@@ -4,7 +4,7 @@ const Thread = @This();
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const testing = std.testing;
-const c = @import("c");
+const c = @import("c.zig");
 const errors = @import("error.zig");
 
 thread: c.uv_thread_t,

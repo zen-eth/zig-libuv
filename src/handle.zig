@@ -1,4 +1,4 @@
-const c = @import("c");
+const c = @import("c.zig");
 
 const Loop = @import("Loop.zig");
 const errors = @import("error.zig");
