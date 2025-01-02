@@ -1,7 +1,7 @@
 const std = @import("std");
 
 /// Directories with our includes.
-const root = thisDir() ++ "/vendor/libuv/";
+const root = thisDir() ++ "/libuv/";
 const include_path = root ++ "include";
 
 pub const pkg = .{
