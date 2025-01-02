@@ -4,7 +4,7 @@ const Cond = @This();
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const testing = std.testing;
-const c = @import("c.zig");
+const c = @import("c");
 const errors = @import("error.zig");
 const Mutex = @import("Mutex.zig");
 

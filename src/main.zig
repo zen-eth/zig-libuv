@@ -2,7 +2,7 @@ const std = @import("std");
 const stream = @import("stream.zig");
 const uv = @This();
 
-pub const c = @import("c.zig");
+pub const c = @import("c");
 pub const Loop = @import("Loop.zig");
 pub const Async = @import("Async.zig");
 pub const Idle = @import("Idle.zig");

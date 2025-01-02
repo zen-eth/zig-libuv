@@ -1,6 +1,6 @@
 const std = @import("std");
 const testing = std.testing;
-const c = @import("c.zig");
+const c = @import("c");
 
 /// Enum mapping for errors.
 pub const Errno = enum(i32) {

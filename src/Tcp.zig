@@ -3,7 +3,7 @@
 const Tcp = @This();
 
 const std = @import("std");
-const c = @import("c.zig");
+const c = @import("c");
 const Loop = @import("Loop.zig");
 const errors = @import("error.zig");
 const stream = @import("stream.zig");

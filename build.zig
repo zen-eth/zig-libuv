@@ -29,6 +29,7 @@ pub fn build(b: *std.Build) !void {
         .target = target,
         .optimize = optimize,
     });
+    tests.root_module.addImport("c", clibuv);
     const lib = try link(b, tests);
     clibuv.linkLibrary(lib);
 
@@ -43,6 +44,7 @@ pub fn build(b: *std.Build) !void {
     module.addIncludePath(.{ .cwd_relative = include_path });
 
     module.linkLibrary(lib);
+    module.addImport("c", clibuv);
     b.installArtifact(lib);
     b.installArtifact(tests);
 
