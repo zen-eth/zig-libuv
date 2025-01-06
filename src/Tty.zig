@@ -2,7 +2,7 @@
 const Tty = @This();
 
 const std = @import("std");
-const fd_t = std.os.fd_t;
+const fd_t = std.posix.fd_t;
 const Allocator = std.mem.Allocator;
 const testing = std.testing;
 const c = @import("c.zig");
